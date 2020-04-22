@@ -65,7 +65,7 @@ public class CuratorManager {
             pathChildrenCache.getListenable().addListener((client, event) -> {
                 switch (event.getType()) {
                     case CHILD_ADDED:
-                        String currentPathValue = new String(client.getData().storingStatIn(new Stat()).forPath(path));
+                        String currentPathValue = new String(client.getData().forPath(path));
                         LOGGER.info("CHILD_ADDED,{},parent node data: {}", event.getData().getPath(), currentPathValue);
                         break;
                     case CHILD_UPDATED:
@@ -84,15 +84,15 @@ public class CuratorManager {
     }
 
     public void close() {
-        if (curatorClient != null) {
-            curatorClient.close();
-        }
         if (pathChildrenCache != null) {
             try {
                 pathChildrenCache.close();
             } catch (IOException e) {
                 LOGGER.error("zookeeper watch listener close exception", e);
             }
+        }
+        if (curatorClient != null) {
+            curatorClient.close();
         }
     }
 
@@ -101,7 +101,7 @@ public class CuratorManager {
 
     public boolean add(String key, String value) {
         try {
-            curatorClient.create().forPath(fixPath(key), value.getBytes());
+            curatorClient.create().creatingParentsIfNeeded().forPath(fixPath(key), value.getBytes());
         } catch (Exception e) {
             LOGGER.error("!!! 新增配置失败，key:{}, value:{}.", key, value, e);
             return false;
@@ -145,6 +145,11 @@ public class CuratorManager {
         try {
             GetChildrenBuilder children = curatorClient.getChildren();
             String baseNode = fixPath(key);
+            Stat stat = curatorClient.checkExists().forPath(baseNode);
+            if (stat == null) {
+                // 节点不存在
+                return result;
+            }
             List<String> keyPath = children.forPath(baseNode);
             for (String path : keyPath) {
                 try {
@@ -154,7 +159,7 @@ public class CuratorManager {
                 }
             }
         } catch (Exception e) {
-            LOGGER.error("!!! 获取配置失败，key:{}.", "/", e);
+            LOGGER.error("!!! 获取配置失败，key:{}.", key, e);
             return null;
         }
         return result;
