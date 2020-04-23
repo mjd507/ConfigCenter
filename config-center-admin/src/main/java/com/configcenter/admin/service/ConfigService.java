@@ -5,15 +5,19 @@ import com.configcenter.admin.aop.CheckRead;
 import com.configcenter.admin.aop.CheckWrite;
 import com.configcenter.admin.vo.request.ConfigReq;
 import com.configcenter.client.core.CuratorManager;
+import com.configcenter.client.listener.ConfigChangeListener;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
 import java.util.Map;
 
 /**
  * Created by mjd on 2020/4/17 11:41
  */
 @Service
+@Slf4j
 public class ConfigService {
 
     @Autowired
@@ -21,6 +25,17 @@ public class ConfigService {
 
     @Autowired
     private UserService userService;
+
+    @PostConstruct
+    public void init() {
+        String watchKey = "key1";
+        configManager.registerConfigChangeListener(new ConfigChangeListener(watchKey) {
+            @Override
+            public void onConfigChange(Object newVal) {
+                log.info("监听到配置改变，key: {}, val:{}", watchKey, newVal);
+            }
+        });
+    }
 
     @CheckRead
     public Map<String, String> listAppConfig(@CheckParam Integer appId) {

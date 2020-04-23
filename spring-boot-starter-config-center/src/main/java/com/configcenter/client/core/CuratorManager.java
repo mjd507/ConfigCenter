@@ -1,5 +1,6 @@
 package com.configcenter.client.core;
 
+import com.configcenter.client.listener.ConfigChangeListener;
 import com.configcenter.common.util.CCException;
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
@@ -12,9 +13,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import static org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent.Type.CHILD_REMOVED;
 
 /**
  * 使用 curator 管理 zookeeper
@@ -58,21 +62,41 @@ public class CuratorManager {
         addListener("/" + nameSpace);
     }
 
-    public void addListener(String path) {
+    private final List<ConfigChangeListener> configChangeListeners = new ArrayList<>();
+
+    public void registerConfigChangeListener(ConfigChangeListener configChangeListener) {
+        this.configChangeListeners.add(configChangeListener);
+    }
+
+    private void addListener(String path) {
         try {
             pathChildrenCache = new PathChildrenCache(curatorClient, path, true);
             pathChildrenCache.start();
             pathChildrenCache.getListenable().addListener((client, event) -> {
+                if (event == null || event.getData() == null) return;
+                String changePath = event.getData().getPath();
+                int index = ("/" + nameSpace + "/").length();
+                String changeKey = changePath.substring(index);
+                String newVal = null;
+
+                if (event.getType() != CHILD_REMOVED) {
+                    try {
+                        newVal = new String(client.getData().forPath(changePath));
+                    } catch (Exception ignore) {
+                    }
+                }
                 switch (event.getType()) {
                     case CHILD_ADDED:
-                        String currentPathValue = new String(client.getData().forPath(path));
-                        LOGGER.info("CHILD_ADDED,{},parent node data: {}", event.getData().getPath(), currentPathValue);
+                        LOGGER.debug("CHILD_ADDED,{}, value: {}", changePath, newVal);
+                        notifyConfigChange(changeKey, newVal);
                         break;
                     case CHILD_UPDATED:
-                        LOGGER.info("CHILD_UPDATED,{},vaule:{}", event.getData().getPath(), new String(event.getData().getData()));
+                        LOGGER.debug("CHILD_UPDATED,{}, value:{}", changePath, newVal);
+                        notifyConfigChange(changeKey, newVal);
                         break;
                     case CHILD_REMOVED:
-                        LOGGER.info("CHILD_REMOVED,{}", event.getData().getPath());
+                        LOGGER.debug("CHILD_REMOVED,{}", changePath);
+                        notifyConfigChange(changeKey, newVal);
                         break;
                     default:
                         break;
@@ -80,6 +104,14 @@ public class CuratorManager {
             });
         } catch (Exception e) {
             LOGGER.error("配置中心，添加 watch 失败", e);
+        }
+    }
+
+    private void notifyConfigChange(String key, String newVal) {
+        for (ConfigChangeListener listener : configChangeListeners) {
+            if (listener.getKey().equals(key)) {
+                listener.onConfigChange(newVal);
+            }
         }
     }
 
