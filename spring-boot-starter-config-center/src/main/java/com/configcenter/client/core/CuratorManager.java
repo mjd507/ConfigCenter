@@ -59,7 +59,9 @@ public class CuratorManager {
                 .build();
         curatorClient.start();
 
-        addListener("/" + nameSpace);
+        if (needNamespace) {
+            addListener("/");
+        }
     }
 
     private final List<ConfigChangeListener> configChangeListeners = new ArrayList<>();
@@ -75,7 +77,7 @@ public class CuratorManager {
             pathChildrenCache.getListenable().addListener((client, event) -> {
                 if (event == null || event.getData() == null) return;
                 String changePath = event.getData().getPath();
-                int index = ("/" + nameSpace + "/").length();
+                int index = ("/").length();
                 String changeKey = changePath.substring(index);
                 String newVal = null;
 
@@ -172,11 +174,21 @@ public class CuratorManager {
         return new String(bytes);
     }
 
-    public Map<String, String> getAll(String key) {
+    public Map<String, String> getAll() {
+        return getAllByAppKey("");
+    }
+
+    /**
+     * 供管理后台多项目配置查询使用
+     *
+     * @param appKey
+     * @return
+     */
+    public Map<String, String> getAllByAppKey(String appKey) {
         Map<String, String> result = new LinkedHashMap<>();
         try {
             GetChildrenBuilder children = curatorClient.getChildren();
-            String baseNode = fixPath(key);
+            String baseNode = fixPath(appKey);
             Stat stat = curatorClient.checkExists().forPath(baseNode);
             if (stat == null) {
                 // 节点不存在
@@ -185,19 +197,17 @@ public class CuratorManager {
             List<String> keyPath = children.forPath(baseNode);
             for (String path : keyPath) {
                 try {
-                    byte[] bytes = curatorClient.getData().forPath(baseNode + "/" + path);
+                    String fullPath = baseNode.equals("/") ? baseNode + path : baseNode + "/" + path;
+                    byte[] bytes = curatorClient.getData().forPath(fullPath);
                     result.put(path, new String(bytes));
                 } catch (Exception ignore) {
                 }
             }
         } catch (Exception e) {
-            LOGGER.error("!!! 获取配置失败，key:{}.", key, e);
+            LOGGER.error("!!! 获取配置失败，appKey:{}.", appKey, e);
             return null;
         }
         return result;
-    }
-
-    public void watch(String key) {
     }
 
     /**

@@ -14,12 +14,22 @@ public class CrudTest {
 
     private static CuratorManager curatorManager;
 
-    private static String baseNode = "com.test.app";
+    private static String baseNode = "";
 
+    //    @BeforeClass
+//    public static void setUp() {
+//        curatorManager = new CuratorManager();
+//        curatorManager.setConnectString("localhost:2181");
+//        curatorManager.setIsAdmin(true);
+//        curatorManager.setNameSpace("com.test.app");
+//        curatorManager.init();
+//    }
     @BeforeClass
     public static void setUp() {
         curatorManager = new CuratorManager();
         curatorManager.setConnectString("localhost:2181");
+        curatorManager.setIsAdmin(false);
+        curatorManager.setNameSpace("com.test.app");
         curatorManager.init();
     }
 
@@ -54,8 +64,14 @@ public class CrudTest {
 
     @Test
     public void test5GetAll() {
-        Map s = curatorManager.getAll(baseNode);
+        Map s = curatorManager.getAllByAppKey(baseNode);
         System.out.println(s);
+    }
+
+    @Test
+    public void test6GetAll() {
+        Map<String, String> map = curatorManager.getAll();
+        System.out.println(map);
     }
 
     @AfterClass

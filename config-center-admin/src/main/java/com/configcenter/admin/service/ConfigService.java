@@ -40,7 +40,7 @@ public class ConfigService {
     @CheckRead
     public Map<String, String> listAppConfig(@CheckParam Integer appId) {
         String appName = userService.getAppName(appId);
-        return configManager.getAll(appName);
+        return configManager.getAllByAppKey(appName);
     }
 
     @CheckWrite
