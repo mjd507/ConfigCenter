@@ -1,6 +1,7 @@
 package com.github.mjd507.configcenter.client.core;
 
 import com.github.mjd507.configcenter.client.listener.ConfigChangeListener;
+import com.github.mjd507.configcenter.client.listener.GlobalConfigChangeListener;
 import com.github.mjd507.util.exception.BusinessException;
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
@@ -109,7 +110,16 @@ public class CuratorManager {
         }
     }
 
+    private GlobalConfigChangeListener globalChangeListener;
+
+    public void setGlobalChangeListener(GlobalConfigChangeListener globalChangeListener) {
+        this.globalChangeListener = globalChangeListener;
+    }
+
     private void notifyConfigChange(String key, String newVal) {
+        if (globalChangeListener != null) {
+            globalChangeListener.onConfigChange(key, newVal);
+        }
         for (ConfigChangeListener listener : configChangeListeners) {
             if (listener.getKey().equals(key)) {
                 listener.onConfigChange(newVal);
