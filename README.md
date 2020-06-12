@@ -10,7 +10,7 @@
 
 - 配置中心管理后台前后端分离，分别对应 **config-center-ui** 和 **config-center-admin**
 
-## Client 端接入方式（SpringBoot）
+## Client 端接入方式
 
 1. 引入 maven 依赖
     ```xml
@@ -22,25 +22,46 @@
     ```
    
 2. 配置zk链接信息
+    resources 目录下需创建 META-INF 目录，在里面创建 app.properties 文件，添加 app.name 内容
+    app.name 对应的内容即为 zk 对此项目的配置内容前缀，每个项目唯一
     ```yaml
     configcenter:
-      namespace: ${spring.application.name} # 每个项目定义唯一的 namespace. 此为监听配置变更的默认路径
-
       connect-string: localhost:2181 # 多个地址用,分割
     ```
 
-3. 注入 ConfigManager
+3. 配置客户端
+    ```java
+    @Configuration
+    @Getter
+    @Setter
+    public class CuratorConfig {
+    
+        @Value("${configcenter.connect-string}")
+        private String connectString;
+    
+        @Value("${configcenter.is-admin}")
+        private Boolean isAdmin;
+    
+        @Bean(name = "curatorManager", destroyMethod = "close")
+        public CuratorManager curatorManager() {
+            CuratorManager curatorManager = new CuratorManager();
+            curatorManager.setNameSpace(ResourceUtil.getAppName());
+            curatorManager.setIsAdmin(isAdmin);
+            curatorManager.setConnectString(connectString);
+            curatorManager.init();
+            return curatorManager;
+        }
+    }
+    ```
+   
+4. 注入 CuratorManager，读取配置，监听单个key
     ```java
        @Autowired
        private CuratorManager configManager;
-    ```
-4. 读取配置
-     ```java
-        configManager.getAll();
-        configManager.get(String key);
-    ```
-5. 监听单个key
-    ```java
+   
+       configManager.getAll();
+       configManager.get(String key);
+
         String watchKey = "key1";
         configManager.registerConfigChangeListener(new ConfigChangeListener(watchKey) {
             @Override
@@ -49,5 +70,4 @@
             }
         });
     ```
-
  

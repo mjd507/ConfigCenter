@@ -35,6 +35,5 @@ logging:
 #  config-location: classpath:mybatis.xml
 
 configcenter:
-  namespace: ${spring.application.name}
   connect-string: localhost:2181
   is-admin: true
